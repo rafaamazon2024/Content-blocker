@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Content Blocker</string>
+    <string name="status_on">Proteção ATIVA</string>
+    <string name="status_off">Proteção desativada</string>
+    <string name="btn_on">Ligar</string>
+    <string name="btn_off">Desligar</string>
+    <string name="btn_setup">Configurar servidor / PIN</string>
+    <string name="notif_title">Content Blocker ativo</string>
+    <string name="notif_text">Protegendo contra conteúdo adulto</string>
+</resources>
