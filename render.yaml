@@ -1,0 +1,39 @@
+services:
+  # Admin API — manage blocklist, view logs, unlock requests
+  - type: web
+    name: content-blocker-api
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn api:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: blocker-db
+          property: connectionString
+      - key: ADMIN_TOKEN
+        sync: false          # set manually in Render dashboard
+      - key: UNLOCK_DELAY_HOURS
+        value: "48"
+
+  # Daily blocklist refresh (03:00 UTC)
+  - type: cron
+    name: content-blocker-updater
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    schedule: "0 3 * * *"
+    startCommand: python blocklist_updater.py
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: blocker-db
+          property: connectionString
+
+  # DNS server — needs a VPS with UDP/TCP port 53 open.
+  # Deploy separately on DigitalOcean / AWS / any VPS:
+  #   pip install -r requirements.txt
+  #   python dns_server.py
+  # (Render web services do not support raw UDP/TCP port 53.)
+
+databases:
+  - name: blocker-db
+    plan: free
