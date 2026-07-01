@@ -30,8 +30,8 @@ def get_connected_interfaces() -> list[str]:
     )
     interfaces = []
     for line in r.stdout.splitlines():
-        if "Connected" in line:
-            # last field is the interface name (may contain spaces)
+        # "Connected" (EN) or "Conectado"/"Ligado" (PT-BR)
+        if any(word in line for word in ("Connected", "Conectado", "Ligado")):
             parts = line.split()
             if len(parts) >= 4:
                 interfaces.append(" ".join(parts[3:]))
@@ -41,8 +41,9 @@ def get_connected_interfaces() -> list[str]:
 def set_dns(dns_ip: str):
     interfaces = get_connected_interfaces()
     if not interfaces:
-        print("No connected interfaces found.")
-        sys.exit(1)
+        # Fallback: apply to the two most common interface names
+        print("Interfaces não detectadas automaticamente — aplicando em Wi-Fi e Ethernet...")
+        interfaces = ["Wi-Fi", "Ethernet", "Local Area Connection"]
 
     print(f"Setting DNS to {dns_ip} on {len(interfaces)} interface(s)…\n")
     for iface in interfaces:
