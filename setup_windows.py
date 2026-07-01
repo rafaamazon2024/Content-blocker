@@ -45,46 +45,20 @@ def set_dns(dns_ip: str):
         print("Interfaces não detectadas automaticamente — aplicando em Wi-Fi e Ethernet...")
         interfaces = ["Wi-Fi", "Ethernet", "Local Area Connection"]
 
-    print(f"Setting DNS to {dns_ip} on {len(interfaces)} interface(s)…\n")
+    print(f"Configurando DNS para {dns_ip} em {len(interfaces)} interface(s)…\n")
     for iface in interfaces:
         print(f"  → {iface}")
         run(f'netsh interface ip set dns name="{iface}" static {dns_ip}')
+        # Adiciona o servidor como DNS secundário para evitar queda de internet
+        run(f'netsh interface ip add dns name="{iface}" {dns_ip} index=1')
 
-    # Block access to alternative DNS servers via Windows Firewall
-    print("\nBlocking outbound DNS to other servers (port 53)…")
-    run('netsh advfirewall firewall delete rule name="BlockAltDNS"')
-    run(
-        'netsh advfirewall firewall add rule '
-        'name="BlockAltDNS" protocol=UDP dir=out remoteport=53 action=block'
-    )
-    run(
-        'netsh advfirewall firewall add rule '
-        'name="BlockAltDNS-TCP" protocol=TCP dir=out remoteport=53 action=block'
-    )
-    # Allow our DNS server specifically
-    run(
-        f'netsh advfirewall firewall add rule '
-        f'name="AllowBlockerDNS" protocol=UDP dir=out remoteport=53 '
-        f'remoteip={dns_ip} action=allow'
-    )
-    run(
-        f'netsh advfirewall firewall add rule '
-        f'name="AllowBlockerDNS-TCP" protocol=TCP dir=out remoteport=53 '
-        f'remoteip={dns_ip} action=allow'
-    )
+    # Desabilita DNS over HTTPS do Windows para evitar bypass pelo sistema
+    print("\nDesabilitando DNS over HTTPS do Windows…")
+    run('reg add "HKLM\\SYSTEM\\CurrentControlSet\\Services\\Dnscache\\Parameters" '
+        '/v EnableAutoDoh /t REG_DWORD /d 0 /f')
 
-    # Block common DoH endpoints so the browser can't bypass via HTTPS DNS
-    DOH_IPS = ["8.8.8.8", "8.8.4.4", "1.1.1.1", "1.0.0.1", "9.9.9.9", "149.112.112.112"]
-    print("\nBlocking known DoH servers…")
-    for ip in DOH_IPS:
-        run(
-            f'netsh advfirewall firewall add rule '
-            f'name="BlockDoH-{ip}" protocol=TCP dir=out '
-            f'remoteip={ip} remoteport=443 action=block'
-        )
-
-    print(f"\nDone. Your DNS is now protected by {dns_ip}.")
-    print("To undo everything run: python setup_windows.py --revert")
+    print(f"\nPronto! DNS protegido por {dns_ip}.")
+    print("Para reverter: python setup_windows.py --revert")
 
 
 def revert():
@@ -94,15 +68,11 @@ def revert():
         print(f"  → {iface}")
         run(f'netsh interface ip set dns name="{iface}" dhcp')
 
-    print("\nRemoving firewall rules…")
-    for name in ["BlockAltDNS", "BlockAltDNS-TCP", "AllowBlockerDNS", "AllowBlockerDNS-TCP"]:
-        run(f'netsh advfirewall firewall delete rule name="{name}"')
+    # Restaura DNS over HTTPS
+    run('reg delete "HKLM\\SYSTEM\\CurrentControlSet\\Services\\Dnscache\\Parameters" '
+        '/v EnableAutoDoh /f')
 
-    DOH_IPS = ["8.8.8.8", "8.8.4.4", "1.1.1.1", "1.0.0.1", "9.9.9.9", "149.112.112.112"]
-    for ip in DOH_IPS:
-        run(f'netsh advfirewall firewall delete rule name="BlockDoH-{ip}"')
-
-    print("\nReverted. DNS is now controlled by your router/DHCP.")
+    print("\nRevertido. DNS controlado pelo roteador/DHCP.")
 
 
 if __name__ == "__main__":
