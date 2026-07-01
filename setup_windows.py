@@ -52,18 +52,33 @@ def set_dns(dns_ip: str):
         # Adiciona o servidor como DNS secundário para evitar queda de internet
         run(f'netsh interface ip add dns name="{iface}" {dns_ip} index=1')
 
-    # Desabilita DNS over HTTPS do Windows para evitar bypass pelo sistema
+    # Desabilita DNS over HTTPS do Windows
     print("\nDesabilitando DNS over HTTPS do Windows…")
     run('reg add "HKLM\\SYSTEM\\CurrentControlSet\\Services\\Dnscache\\Parameters" '
         '/v EnableAutoDoh /t REG_DWORD /d 0 /f')
 
-    print(f"\nPronto! DNS protegido por {dns_ip}.")
+    # Desabilita DNS over HTTPS do Chrome (bypass mais comum)
+    print("Desabilitando DNS over HTTPS do Chrome…")
+    run('reg add "HKLM\\SOFTWARE\\Policies\\Google\\Chrome" '
+        '/v DnsOverHttpsMode /t REG_SZ /d "off" /f')
+
+    # Desabilita DNS over HTTPS do Edge
+    print("Desabilitando DNS over HTTPS do Edge…")
+    run('reg add "HKLM\\SOFTWARE\\Policies\\Microsoft\\Edge" '
+        '/v DnsOverHttpsMode /t REG_SZ /d "off" /f')
+
+    # Desabilita DNS over HTTPS do Firefox
+    print("Desabilitando DNS over HTTPS do Firefox…")
+    run('reg add "HKLM\\SOFTWARE\\Policies\\Mozilla\\Firefox" '
+        '/v DNSOverHTTPS /t REG_DWORD /d 0 /f')
+
+    print(f"\nPronto! DNS protegido por {dns_ip}. Feche e reabra os navegadores.")
     print("Para reverter: python setup_windows.py --revert")
 
 
 def revert():
     interfaces = get_connected_interfaces()
-    print(f"Reverting DNS to automatic (DHCP) on {len(interfaces)} interface(s)…\n")
+    print(f"Revertendo DNS para automático (DHCP)…\n")
     for iface in interfaces:
         print(f"  → {iface}")
         run(f'netsh interface ip set dns name="{iface}" dhcp')
